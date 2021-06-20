@@ -91,3 +91,8 @@ export const ListTransaction = styled(FlatList as new () => FlatList<DataListPro
     showsVerticalScrollIndicator: false
 })``;
 
+export const LoadingActiveIndication = styled.View`
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+`;
