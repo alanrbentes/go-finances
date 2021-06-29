@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { HighlightCard } from '../../components/HighlightCard';
 import { TransectionCards, TransectionCardsProps } from '../../components/TransactionCard';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator } from 'react-native';
 
 import {
@@ -21,12 +21,11 @@ import {
     ListTransaction,
     LogoutButton,
     LoadingActiveIndication
-} from './styles'
-import { SelectItem } from '../../components/Forms/SelectItem';
+} from './styles';
+import { useAuth } from '../../hooks/auth';
 
 export interface DataListPropos extends TransectionCardsProps {
     id: string;
-    
 }
 
 interface TotalProps {
@@ -46,37 +45,33 @@ export function Dashboard() {
         collection: DataListPropos[],
         type: 'positive' | 'negative'
     ) {
-        // transactions é o retorno em json do AsyncStorage
-        const dateEntries = collection
-            .filter((item: DataListPropos) => item.type === 'positive')
-            .map((item: DataListPropos) => new Date(item.date).getTime());
+        const checkDataAsyncStorage = collection.filter(transaction => transaction.type === type);
 
-        const higthDate = Math.max.apply(Math, dateEntries);
+        if (checkDataAsyncStorage.length === 0) {
+            return "";
+        }
 
-        const dateFormatted = Intl.DateTimeFormat('pt-BR', {
+        const lastTransactionDate = Math.max.apply(Math, collection
+            .filter((item) => item.type === type)
+            .map((item) => new Date(item.date).getTime()));
+
+        return Intl.DateTimeFormat('pt-BR', {
             day: '2-digit',
             month: '2-digit',
             year: '2-digit'
-        }).format(new Date(higthDate));
-
-        return dateFormatted;
-
-        // const dateFormatted = new Date(Intl.DateTimeFormat('pt-BR', {
-        //     day: '2-digit',
-        //     month: '2-digit',
-        //     year: '2-digit'
-        // }).format(new Date(higthDate)));
-
-        // return `${dateFormatted.getDate()} de ${dateFormatted.toLocaleString('pt-BR', {month: 'long'})}`;
+        }).format(new Date(lastTransactionDate));
     }
+
 
     const [loading, setLoading] = useState(true)
 
     const [data, setData] = useState<DataListPropos[]>([]);
     const [totalAmount, setTotalAmount] = useState<TotalDataProps>({} as TotalDataProps);
+    const { signOut, stateUserLogged } = useAuth();
 
     async function loadTransaction() {
-        const datakey = '@gofinances:transactions';
+        // const datakey = `@gofinances:transactions_user:${stateUser.id}`;
+        const datakey = "@gofinances:transactions";
         const response = await AsyncStorage.getItem(datakey);
         const transactions = response ? JSON.parse(response) : [];
 
@@ -118,6 +113,8 @@ export function Dashboard() {
 
         const lastDateEntries = getLastTransactionDate(transactions, 'positive');
         const lastDateOut = getLastTransactionDate(transactions, 'negative');
+        // fazer um filtro para mostrar o período no consolidado
+        const totalInterval = lastDateOut === "" ? "Não há transações" : `01 à ${lastDateOut}`;
 
 
         const totalFull = inputSumTransaction - outputSumTransactions;
@@ -129,7 +126,7 @@ export function Dashboard() {
                     style: 'currency',
                     currency: 'BRL'
                 }),
-                lastTransaction: lastDateEntries
+                lastTransaction: lastDateEntries === "" ? "Nenhuma transação encontrada!" : `Data do último recebimento - ${lastDateEntries}`
             },
             outputSum: {
                 total: outputSumTransactions.toLocaleString(
@@ -137,7 +134,7 @@ export function Dashboard() {
                     style: 'currency',
                     currency: 'BRL'
                 }),
-                lastTransaction: lastDateOut
+                lastTransaction: lastDateOut === "" ? "Nenhuma transação encontrada!" : `Data do último pagamento - ${lastDateOut}`
             },
             totalFull: {
                 total: totalFull.toLocaleString(
@@ -145,7 +142,7 @@ export function Dashboard() {
                     style: 'currency',
                     currency: 'BRL'
                 }),
-                lastTransaction: lastDateOut
+                lastTransaction: totalInterval
             },
 
         })
@@ -159,7 +156,7 @@ export function Dashboard() {
 
     useFocusEffect(useCallback(() => {
         loadTransaction();
-    }, []))
+    }, []));
 
     return (
         <Container>
@@ -172,15 +169,15 @@ export function Dashboard() {
                         <HeaderApp>
                             <UserWrapper>
                                 <UserInfo>
-                                    <PhotoPerfil source={{ uri: 'https://avatars.githubusercontent.com/u/3473776?v=4' }} />
+                                    <PhotoPerfil source={{ uri: stateUserLogged.photo }} />
                                     <User>
                                         <UserGreeting>
                                             Olá!
-                            </UserGreeting>
-                                        <UserName>Alan</UserName>
+                                        </UserGreeting>
+                                        <UserName>{stateUserLogged.name}</UserName>
                                     </User>
                                 </UserInfo>
-                                <LogoutButton onPress={() => { }}>
+                                <LogoutButton onPress={signOut}>
                                     <IconPower name="power" />
                                 </LogoutButton>
                             </UserWrapper>
@@ -202,7 +199,7 @@ export function Dashboard() {
                                 type="total"
                                 title="Entradas"
                                 amount={totalAmount.totalFull.total}
-                                lestTransaction="Peŕiodo - 01 à 16 de junho 2021"
+                                lestTransaction={totalAmount.totalFull.lastTransaction}
                             />
                         </HighlightCards>
 
